@@ -1,0 +1,1 @@
+count('Present')/count('status')) * 100 from attendance

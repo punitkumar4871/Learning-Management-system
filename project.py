@@ -7,6 +7,8 @@ from tkinter import Frame
 from tkinter import ttk
 from tkinter import messagebox
 import random
+from itertools import cycle
+import tkinter as tk
 
 username = "root"
 password = "30127"
@@ -37,7 +39,7 @@ from PIL import Image, ImageTk
 
   print("\n")  # Add a newline between tables'''
 window = tb.Window()
-window.geometry("1366x768")
+window.geometry("3000x1100")
 window.title("Futurense")
 logo_path = "login_page/lms-2.png"      
 window.iconbitmap(logo_path)
@@ -135,7 +137,14 @@ def get_otp():
         messagebox.showerror("Error", "Invalid username or mobile number")
 import subprocess  # Import subprocess to open the main.py script
 
+def open_main_app():
+    subprocess.Popen(['python', 'main.py'])
+
+def close_loading_window():
+    loading_window.destroy()  # Destroy the loading window
+
 def login():
+    global loading_window
     global user
     user = user_entry.get()
     password = password_entry.get()
@@ -153,14 +162,40 @@ def login():
             file.write(user)
 
         messagebox.showinfo("Success", "Login successful!")
-        window.destroy()  # Close the login window
-        open_main_app()  # Open the main application window
+        # Create a new window for the loading page
+        window.destroy()
+        loading_window = tk.Tk()
+        loading_window.title("Loading")
+        loading_window.geometry("3200x1200")
+        loading_window.configure(bg='white')
+
+        # Display loading animation
+        loading_frame = tk.Frame(loading_window, bg='white')
+        loading_frame.place(relx=0.5, rely=0.5, anchor='center')
+        loading_label = tk.Label(loading_frame, text="Logging in...", font=("Helvetica", 16), bg='white')
+        loading_label.pack(pady=20)
+        # Infinity symbol animation
+        spinner = cycle(['|', '/', '-', '\\'])
+        spinner_label = tk.Label(loading_frame, text="", font=("Helvetica", 24), bg='white')
+        spinner_label.pack()
+        def animate():
+            spinner_label.config(text=next(spinner))
+            loading_window.after(50, animate)
+
+        animate()
+        # Warning message
+        warning_label = tk.Label(loading_frame, text="Please do not close the window until we redirect to your new window", font=("Helvetica", 12), fg='grey', bg='white')
+        warning_label.pack(pady=20)
+        # Show the loading page for 3 seconds before transitioning to the dashboard
+        loading_window.after(2300, close_loading_window)
+        loading_window.after(2300, open_main_app)
+        # Open the main application window
+        open_main_app()
 
     else:
         messagebox.showerror("Error", "Invalid username or password")
         
-def open_main_app():
-    subprocess.Popen(['python', 'main.py'])
+
 def forgot_password():
     global forgot_window, forgot_username_entry, forgot_mobile_entry, otp_entry
     forgot_window = tb.Toplevel(window)
@@ -305,9 +340,6 @@ login_button = ttk.Button(login_frame, text="Login", style="CustomButton", comma
 # Create the login button with the custom style
 login_button = ttk.Button(login_frame, text="Login", style="CustomButton", command=login)
 # Focus on username entry for initial interaction
-
 user_entry.focus_set()
-
-
 # Run the main loop
 window.mainloop()

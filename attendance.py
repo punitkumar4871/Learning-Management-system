@@ -2,6 +2,8 @@ import tkinter as tk
 import mysql.connector
 from PIL import Image, ImageTk
 import subprocess
+from itertools import cycle
+
 username = "root"
 password = "30127"
 
@@ -83,9 +85,39 @@ def grade():
 def course():
     subprocess.run(["python", "course_page.py"])
     root.destroy()
-def home():
+def close_loading_window():
+    loading_window.destroy()  # Destroy the loading window
+def home(x):
+    global loading_window
+    root.destroy
+    loading_window = tk.Tk()
+    loading_window.title("Loading")
+    loading_window.geometry("3200x1200")
+    loading_window.configure(bg='white')
+
+    # Display loading animation
+    loading_frame = tk.Frame(loading_window, bg='white')
+    loading_frame.place(relx=0.5, rely=0.5, anchor='center')
+    loading_label = tk.Label(loading_frame, text="Logging in...", font=("Helvetica", 16), bg='white')
+    loading_label.pack(pady=20)
+    # Infinity symbol animation
+    spinner = cycle(['|', '/', '-', '\\'])
+    spinner_label = tk.Label(loading_frame, text="", font=("Helvetica", 24), bg='white')
+    spinner_label.pack()
+    def animate():
+        spinner_label.config(text=next(spinner))
+        loading_window.after(50, animate)
+
+    animate()
+    # Warning message
+    warning_label = tk.Label(loading_frame, text="Please do not close the window until we redirect to your new window", font=("Helvetica", 12), fg='grey', bg='white')
+    warning_label.pack(pady=20)
+    # Show the loading page for 3 seconds before transitioning to the dashboard
+    loading_window.after(2300, close_loading_window)
+    loading_window.after(2300, home)
+    # Open the main application window
     root.destroy()
-    subprocess.run(["python", "main.py"])
+    subprocess.Popen(['python',x])
 
 def assignment():
     root.destroy()
@@ -220,7 +252,7 @@ total_att.place(x = 625, y = 55)
 
 
 # Buttons
-button1 = tk.Button(sidebar, text="DASHBOARD", bg='gray16', fg='white', font=('helvetica', 12, 'bold'), width=15,command=lambda:open_app('main.py'))
+button1 = tk.Button(sidebar, text="DASHBOARD", bg='gray16', fg='white', font=('helvetica', 12, 'bold'), width=15,command=lambda:home('main.py'))
 button1.place(x=20, y=70)
 button2 = tk.Button(sidebar, text="ASSIGNMENT", bg='gray16', fg='white', font=('helvetica', 12, 'bold'), width=15,command=lambda:open_app('Assignment/main1.py'))
 button2.place(x=20, y=170)

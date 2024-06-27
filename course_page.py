@@ -29,130 +29,34 @@ def fetch_courses():
     conn.close()
     return courses
 
-# Function to fetch grades for a specific course
+# Function to fetch grades and teacher name for a specific course
+# Function to fetch grades and teacher name for a specific course
+# Function to fetch grades and teacher name for a specific course
 def fetch_grades(course_id):
     conn = connect_db()
     cursor = conn.cursor()
+
     query = """
-    SELECT student.sname, grade.grades
+    SELECT teacher.tname, COUNT(student.sid) as enrollment_count
     FROM grade
     JOIN student ON grade.sid = student.sid
-    WHERE grade.cid = %s
-    """
-    cursor.execute(query, (course_id,))
-    grades = cursor.fetchall()
-    conn.close()
-    return grades
-
-# Function to open course page and display details
-def open_course_page(course_id):
-    # Read email from log file
-    with open("log.txt", "r") as file:
-        user_email = file.read().strip()  # Read and strip to remove any leading/trailing whitespace
-
-    # Fetch student information based on email
-    conn = connect_db()
-    cursor = conn.cursor()
-    query_student = """
-    SELECT student.sid, student.sname, grade.grades, course.cname, teacher.tname,teacher.tid
-    FROM student
-    JOIN grade ON student.sid = grade.sid
     JOIN course ON grade.cid = course.cid
     JOIN teacher ON course.tid = teacher.tid
-    WHERE student.email = %s AND grade.cid = %s
+    WHERE grade.cid = %s
+    GROUP BY teacher.tname
     """
-    cursor.execute(query_student, (user_email, course_id))
-    student_info = cursor.fetchone()
+    cursor.execute(query, (course_id,))
+    result = cursor.fetchone()
+    cursor.close()
     conn.close()
 
-    if student_info:
-        student_sid = student_info[0]
-        student_name = student_info[1]
-        student_grade = student_info[2]
-        course_name = student_info[3]
-        teacher_name = student_info[4]
-        t_id=student_info[5]
-
-        # New window for course details
-        marks_window = tk.Toplevel()
-        marks_window.title("Course Details")
-        marks_window.configure(bg="goldenrod2")
-        marks_window.geometry("1024x768")
-
-        # HEADER1
-        header_frame1 = Frame(marks_window, height=50, bg='black')
-        header_frame1.place(x=0, y=462, relwidth=1)
-        header_canvas1 = Canvas(header_frame1, height=50, bg='black')
-        header_canvas1.pack(fill='both', expand=True)
-
-        # HEADER2
-        header_frame2 = Frame(marks_window, height=75, bg='black')
-        header_frame2.place(x=0, y=0, relwidth=1)
-        header_canvas2 = Canvas(header_frame2, height=75, bg='black')
-        header_canvas2.pack(fill='both', expand=True)
-
-        # Set text
-        header_canvas1.create_text(760, 30, text=f"MY GRADE", fill='white', font=('Times', 30, 'bold'), anchor='center')
-        header_canvas2.create_text(750, 50, text="LEADERBOARD", fill='white', font=('Times', 30, 'bold'), anchor='center')
-
-        # Display student information and grades for the selected course
-        results_frame = tk.Frame(marks_window, bg="white")
-        results_frame.place(relx=0.05, rely=0.095, relwidth=0.9, relheight=0.489)
-
-        left_frame = Frame(results_frame, bg="white")
-        left_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
-        right_frame = Frame(results_frame, bg="white")
-        right_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=10, pady=10)
-
-        # Blank frame at the bottom (20% coverage)
-        blank_frame = tk.Frame(marks_window, bg="white")
-        blank_frame.place(relx=0.05, rely=0.65, relwidth=0.9, relheight=0.38)
-
-        # Labels for student information
-        info_label1 = Label(blank_frame, text=f"SID: {student_sid}", bg='gray16', fg='white', font=('Times', 18, 'bold'))
-        info_label2 = Label(blank_frame, text=f"Name: {student_name}", bg='white', fg='black', font=('Times', 18, 'bold'))
-        info_label3 = Label(blank_frame, text=f"Grade: {student_grade}", bg='white', fg='black', font=('Times', 18, 'bold'))
-        info_label4 = Label(blank_frame, text=f"Course: {course_name}", bg='white', fg='black', font=('Times', 18, 'bold'))
-        info_label5 = Label(blank_frame, text=f"Teacher: {teacher_name}", bg='white', fg='black', font=('Times', 18, 'bold'))
-        info_label6 = Label(blank_frame, text=f"Tid: {t_id}", bg='white', fg='black', font=('Times', 18, 'bold'))
-
-        # Place labels for student information
-        info_label1.place(x=143, y=220)
-        info_label2.place(x=350, y=20)
-        info_label3.place(x=350, y=190)
-        info_label5.place(x=800, y=20)
-        info_label6.place(x=800, y=100)
-        info_label4.place(x=350, y=100)
-
-
-
-        # Profile photo
-        # Load image for profile (assuming you want it in the blank frame)
-        profile_image = Image.open("grade_page/profile.png")  # Replace with your image file
-        profile_image = profile_image.resize((200, 200))  # Resize image as needed
-        profile_photo = ImageTk.PhotoImage(profile_image)
-
-        # Create a label to display the profile image
-        profile_label = tk.Label(blank_frame, image=profile_photo, bg="white")
-        profile_label.image = profile_photo  # Keep a reference
-        profile_label.pack(pady=10, anchor="nw", padx=70)
-
-        # Headers for columns
-        name_label = Label(left_frame, text="Name", bg="white", font=('Helvetica', 12, 'bold'), anchor="w", width=30)
-        name_label.grid(row=0, column=0, sticky="w", padx=5, pady=5)
-        grade_label = Label(right_frame, text="Grade", bg="white", font=('Helvetica', 12, 'bold'), anchor="e", width=10)
-        grade_label.grid(row=0, column=0, sticky="e", padx=5, pady=5)
-
-        # Fetch and display grades for the selected course
-        grades = fetch_grades(course_id)
-        for idx, (student_name, grade) in enumerate(grades, start=1):
-            student_label = Label(left_frame, text=student_name, bg="white", font=('Helvetica', 12), anchor="w", width=30)
-            student_label.grid(row=idx, column=0, sticky="w", padx=5, pady=5)
-            grade_label = Label(right_frame, text=grade, bg="white", font=('Helvetica', 12), anchor="e", width=10)
-            grade_label.grid(row=idx, column=0, sticky="e", padx=5, pady=5)
-
+    if result:
+        teacher_name, enrollment_count = result
+        return teacher_name, enrollment_count
     else:
-        messagebox.showerror("Error", "Student not found for this course.")
+        return None, None
+
+
 # Initialize main window
 window = tk.Tk()
 window.geometry("1366x768")
@@ -211,10 +115,28 @@ for idx, (course_id, course_name) in enumerate(courses):
     course_label = tk.Label(course_frame, text=course_name, bg="goldenrod2", fg="black", font=('times', 15, 'bold'))
     course_label.pack(pady=25, padx=10)
     
-    course_button = tk.Button(course_frame, text="Show Result", command=lambda cid=course_id: open_course_page(cid), height=2, width=10, font=('helvetica', 10), bg="purple4", fg="white")
+    course_button = tk.Button(course_frame, text="Get Started", command=lambda c=course_id: open_course_details(c), height=2, width=10, font=('helvetica', 10), bg="purple4", fg="white")
     course_button.pack(pady=20)
 
-# Left column menu
+def open_course_details(course_id):
+    teacher_name, enrollment_count = fetch_grades(course_id)
+    
+    if teacher_name is not None and enrollment_count is not None:
+        # Open a new Toplevel window for the course details
+        course_details_window = tk.Toplevel()
+        course_details_window.geometry("600x400")
+        course_details_window.title("Course Details")
+
+        # Display teacher name
+        teacher_label = tk.Label(course_details_window, text=f"Teacher: {teacher_name}", font=('Arial', 16, 'bold'))
+        teacher_label.pack(pady=10)
+
+        # Display number of students enrolled
+        enrollment_label = tk.Label(course_details_window, text=f"Students Enrolled: {enrollment_count}", font=('Arial', 14))
+        enrollment_label.pack(pady=10)
+
+    else:
+        messagebox.showerror("Error", "Failed to fetch course details.")
 left_column_width = 0.15 * 1366
 left_column_frame = Frame(window, width=left_column_width, bg='gray16')
 left_column_frame.place(x=0, y=0, relheight=1, anchor='nw')
@@ -282,6 +204,7 @@ def toggle_left_column():
 toggle_button = tk.Button(window, text="☰", command=toggle_left_column, borderwidth=0, bg="white", fg="black")
 toggle_button.place(x=1500, y=150)
 
+
 # Header frame
 header_frame = Frame(window, height=120, bg='black')
 header_frame.place(x=0, y=0, relwidth=1)
@@ -291,7 +214,7 @@ image = Image.open('background2.jpeg')
 image = image.resize((230, 150))
 photo = ImageTk.PhotoImage(image)
 header_canvas.create_image(100, 60, image=photo, anchor='center')
-header_canvas.create_text(750, 60, text="COURSES RESULT FUTURENSE LMS", fill='white', font=('Times', 30, 'bold'), anchor='center')
+header_canvas.create_text(750, 60, text="MY COUSRES", fill='white', font=('Times', 30, 'bold'), anchor='center')
 
 x = Image.open('background3.jpeg')
 x = x.resize((180, 120))

@@ -3,6 +3,7 @@ from tkinter import ttk
 from PIL import Image, ImageTk
 import mysql.connector
 import subprocess
+from itertools import cycle
 
 class CoursesApp(tk.Tk):
     def __init__(self):
@@ -59,7 +60,7 @@ class CoursesApp(tk.Tk):
         self.sidebar_frame.pack_propagate(False)
 
         sidebar_buttons = [
-            ("Dashboard", lambda: self.open_app('main.py')),
+            ("Dashboard", lambda: self.open_app2('main.py')),
             ("Attendance", lambda:self.open_app('attendance.py')),
             ("Assignment", lambda:self.open_app('Assignment/main1.py')),
             ("Exams", lambda:self.open_app('exam.py')),
@@ -89,6 +90,43 @@ class CoursesApp(tk.Tk):
         # Example query to fetch course data from MySQL
         self.cursor.execute("SELECT cid, cname, tid FROM course")
         self.courses_data = self.cursor.fetchall()  # Assuming a list of tuples (cid, cname, tid)
+    def close_loading_window(self):
+        loading_window.destroy()  # Destroy the loading window
+
+
+
+    def open_app2(self,x):
+        global loading_window
+        loading_window = tk.Tk()
+        loading_window.title("Loading")
+        loading_window.geometry("3200x1200")
+        loading_window.configure(bg='white')
+
+        # Display loading animation
+        loading_frame = tk.Frame(loading_window, bg='white')
+        loading_frame.place(relx=0.5, rely=0.5, anchor='center')
+        loading_label = tk.Label(loading_frame, text="Logging in...", font=("Helvetica", 16), bg='white')
+        loading_label.pack(pady=20)
+        # Infinity symbol animation
+        spinner = cycle(['|', '/', '-', '\\'])
+        spinner_label = tk.Label(loading_frame, text="", font=("Helvetica", 24), bg='white')
+        spinner_label.pack()
+        def animate():
+            spinner_label.config(text=next(spinner))
+            loading_window.after(50, animate)
+
+        animate()
+        # Warning message
+        warning_label = tk.Label(loading_frame, text="Please do not close the window until we redirect to your new window", font=("Helvetica", 12), fg='grey', bg='white')
+        warning_label.pack(pady=20)
+        # Show the loading page for 3 seconds before transitioning to the dashboard
+        loading_window.after(2300, self.close_loading_window)
+        loading_window.after(2300, self.open_app2)
+        # Open the main application window
+        self.destroy()
+        subprocess.Popen(['python',x])    
+
+
 
     def open_app(self,x):
         self.destroy()

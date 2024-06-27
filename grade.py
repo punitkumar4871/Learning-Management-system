@@ -124,8 +124,6 @@ def open_course_page(course_id):
         info_label6.place(x=800, y=100)
         info_label4.place(x=350, y=100)
 
-
-
         # Profile photo
         # Load image for profile (assuming you want it in the blank frame)
         profile_image = Image.open("grade_page/profile.png")  # Replace with your image file
@@ -151,8 +149,28 @@ def open_course_page(course_id):
             grade_label = Label(right_frame, text=grade, bg="white", font=('Helvetica', 12), anchor="e", width=10)
             grade_label.grid(row=idx, column=0, sticky="e", padx=5, pady=5)
 
+        # Background images for each frame inside frame1
+        frame_bg_images = [
+            "grade_page/frame1_bg1.png",
+            "grade_page/frame1_bg2.png",
+            "grade_page/frame1_bg3.png",
+            "grade_page/frame1_bg4.png",
+            "grade_page/frame1_bg5.png",
+            "grade_page/frame1_bg6.png"
+        ]
+
+        # Create PhotoImage objects for each background image
+        frame_bg_photos = [ImageTk.PhotoImage(Image.open(image_path)) for image_path in frame_bg_images]
+
+        # Place background images in each frame inside frame1
+        for idx, frame in enumerate(frame1.winfo_children()):
+            if isinstance(frame, Frame):
+                frame_bg_label = tk.Label(frame, image=frame_bg_photos[idx])
+                frame_bg_label.place(x=0, y=0, relwidth=1, relheight=1)
+
     else:
         messagebox.showerror("Error", "Student not found for this course.")
+
 # Initialize main window
 window = tk.Tk()
 window.geometry("1366x768")
@@ -177,15 +195,6 @@ window.iconbitmap(logo_path)
 frame1 = tk.Frame(window, bg="white")
 frame1.place(relx=0.62, rely=0.70, anchor=tk.CENTER, width=1400, height=620)
 
-# Background image for frame1
-frame1_bg_image = Image.open("grade_page/white4.png")
-frame1_bg_image = frame1_bg_image.resize((1400, 620))
-frame1_bg_photo = ImageTk.PhotoImage(frame1_bg_image)
-
-# Create a label inside frame1 to display the background image
-frame1_label = tk.Label(frame1, image=frame1_bg_photo)
-frame1_label.place(x=0, y=0, relwidth=1, relheight=1)
-
 # Fetch courses from the database
 courses = fetch_courses()
 
@@ -196,6 +205,19 @@ frame_height = 150
 # Calculate gaps between columns and rows
 column_gap = 120
 row_gap = (576 - 2 * frame_height) / 3  # Gap between rows based on available height
+
+# Background images for each frame inside frame1
+frame_bg_images = [
+    "grade_page/1.png",
+    "grade_page/2.png",
+    "grade_page/1.png",
+    "grade_page/1.png",
+    "grade_pagee/2.png",
+    "grade_page/1.png"
+]
+
+# Create PhotoImage objects for each background image
+frame_bg_photos = [ImageTk.PhotoImage(Image.open(image_path)) for image_path in frame_bg_images]
 
 # Create course frames and buttons dynamically
 for idx, (course_id, course_name) in enumerate(courses):
@@ -214,58 +236,69 @@ for idx, (course_id, course_name) in enumerate(courses):
     course_button = tk.Button(course_frame, text="Show Result", command=lambda cid=course_id: open_course_page(cid), height=2, width=10, font=('helvetica', 10), bg="purple4", fg="white")
     course_button.pack(pady=20)
 
+    # Set background image for each course frame
+    frame_bg_label = tk.Label(course_frame, image=frame_bg_photos[idx])
+    frame_bg_label.place(x=0, y=0, relwidth=1, relheight=1)
+
 # Left column menu
 left_column_width = 0.15 * 1366
 left_column_frame = Frame(window, width=left_column_width, bg='gray16')
 left_column_frame.place(x=0, y=0, relheight=1, anchor='nw')
+
+# Function to close loading window
 def close_loading_window():
     loading_window.destroy()  # Destroy the loading window
 
-
+# Function to open application window after loading
 def open_app2(x):
     global loading_window
-    window.destroy
-    loading_window = tk.Tk()
+    loading_window = tk.Toplevel()
     loading_window.title("Loading")
-    loading_window.geometry("3200x1200")
+    loading_window.geometry("400x300")
     loading_window.configure(bg='white')
 
     # Display loading animation
     loading_frame = tk.Frame(loading_window, bg='white')
     loading_frame.place(relx=0.5, rely=0.5, anchor='center')
+
     loading_label = tk.Label(loading_frame, text="Logging in...", font=("Helvetica", 16), bg='white')
     loading_label.pack(pady=20)
+
     # Infinity symbol animation
     spinner = cycle(['|', '/', '-', '\\'])
     spinner_label = tk.Label(loading_frame, text="", font=("Helvetica", 24), bg='white')
     spinner_label.pack()
+
     def animate():
         spinner_label.config(text=next(spinner))
         loading_window.after(50, animate)
 
     animate()
+
     # Warning message
     warning_label = tk.Label(loading_frame, text="Please do not close the window until we redirect to your new window", font=("Helvetica", 12), fg='grey', bg='white')
     warning_label.pack(pady=20)
+
     # Show the loading page for 3 seconds before transitioning to the dashboard
     loading_window.after(2300, close_loading_window)
     loading_window.after(2300, open_app2)
     # Open the main application window
     window.destroy()
-    subprocess.Popen(['python',x])
+    subprocess.Popen(['python', x])
 
 def open_app(x):
-        window.destroy()
-        subprocess.Popen(['python',x])
-dash_button = Button(left_column_frame, text="DASHBOARD", bg='gray16', fg='white', font=('helvetica', 12, 'bold'), width=15,command=lambda:open_app2('main.py'))
+    window.destroy()
+    subprocess.Popen(['python', x])
+
+dash_button = Button(left_column_frame, text="DASHBOARD", bg='gray16', fg='white', font=('helvetica', 12, 'bold'), width=15, command=lambda: open_app2('main.py'))
 dash_button.place(x=20, y=150)
-assin_button = Button(left_column_frame, text="ASSIGNMENT", bg='gray16', fg='white', font=('helvetica', 12, 'bold'), width=15,command=lambda:open_app('Assignment/main1.py'))
+assin_button = Button(left_column_frame, text="ASSIGNMENT", bg='gray16', fg='white', font=('helvetica', 12, 'bold'), width=15, command=lambda: open_app('Assignment/main1.py'))
 assin_button.place(x=20, y=250)
-attendance_button = Button(left_column_frame, text="ATTENDANCE", bg='gray16', fg='white', font=('helvetica', 12, 'bold'), width=15,command=lambda:open_app('attendance.py'))
+attendance_button = Button(left_column_frame, text="ATTENDANCE", bg='gray16', fg='white', font=('helvetica', 12, 'bold'), width=15, command=lambda: open_app('attendance.py'))
 attendance_button.place(x=20, y=350)
-assin_button = Button(left_column_frame, text="EXAMS", bg='gray16', fg='white', font=('helvetica', 12, 'bold'), width=15,command=lambda:open_app('exam.py'))
+assin_button = Button(left_column_frame, text="EXAMS", bg='gray16', fg='white', font=('helvetica', 12, 'bold'), width=15, command=lambda: open_app('exam.py'))
 assin_button.place(x=20, y=450)
-attendance_button = Button(left_column_frame, text="COURSES", bg='gray16', fg='white', font=('helvetica', 12, 'bold'), width=15,command=lambda:open_app('grade.py'))
+attendance_button = Button(left_column_frame, text="COURSES", bg='gray16', fg='white', font=('helvetica', 12, 'bold'), width=15, command=lambda: open_app('grade.py'))
 attendance_button.place(x=20, y=550)
 
 # Function to toggle left column visibility
@@ -287,6 +320,7 @@ header_frame = Frame(window, height=120, bg='black')
 header_frame.place(x=0, y=0, relwidth=1)
 header_canvas = tk.Canvas(header_frame, height=120, bg='black')
 header_canvas.pack(fill='both', expand=True)
+
 image = Image.open('background2.jpeg')
 image = image.resize((230, 150))
 photo = ImageTk.PhotoImage(image)

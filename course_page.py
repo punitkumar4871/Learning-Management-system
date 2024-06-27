@@ -1,242 +1,301 @@
-import tkinter as tk
-from tkinter import ttk
-from PIL import Image, ImageTk
-import mysql.connector
 import subprocess
+from tkinter import *
+import tkinter as tk
+import mysql.connector
+from PIL import Image, ImageTk
+from tkinter import messagebox
 from itertools import cycle
 
-class CoursesApp(tk.Tk):
-    def __init__(self):
-        super().__init__()
+# MySQL connection details
+username = "root"
+password = "30127"
+database = "futurense"
 
-        self.title("Courses Application")
-        self.geometry("1200x700")
-        self.configure(background='white')
+# Function to connect to MySQL database
+def connect_db():
+    return mysql.connector.connect(
+        host="localhost",
+        user=username,
+        passwd=password,
+        database=database
+    )
 
-        # Connect to your MySQL database
-        self.conn = mysql.connector.connect(
-            host="localhost",
-            user="root",
-            password="30127",
-            database="futurense"
-        )
+# Function to fetch courses from the database
+def fetch_courses():
+    conn = connect_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT cid, cname FROM course")
+    courses = cursor.fetchall()
+    conn.close()
+    return courses
 
-        # Create a cursor to execute queries
-        self.cursor = self.conn.cursor()
+# Function to fetch grades for a specific course
+def fetch_grades(course_id):
+    conn = connect_db()
+    cursor = conn.cursor()
+    query = """
+    SELECT student.sname, grade.grades
+    FROM grade
+    JOIN student ON grade.sid = student.sid
+    WHERE grade.cid = %s
+    """
+    cursor.execute(query, (course_id,))
+    grades = cursor.fetchall()
+    conn.close()
+    return grades
 
-        # Create top canvas for logo and dashboard options
-        self.header_height = 150  # Adjust header height here
-        self.top_canvas = tk.Canvas(self, bg='black', height=self.header_height)
-        self.top_canvas.pack(side=tk.TOP, fill=tk.X)
+# Function to open course page and display details
+def open_course_page(course_id):
+    # Read email from log file
+    with open("log.txt", "r") as file:
+        user_email = file.read().strip()  # Read and strip to remove any leading/trailing whitespace
 
-        # Right logo
-        logo_path = "background3.jpeg"
-        logo = Image.open(logo_path)
-        logo = logo.resize((150, 100), Image.LANCZOS)
-        self.logo_image = ImageTk.PhotoImage(logo)
+    # Fetch student information based on email
+    conn = connect_db()
+    cursor = conn.cursor()
+    query_student = """
+    SELECT student.sid, student.sname, grade.grades, course.cname, teacher.tname,teacher.tid
+    FROM student
+    JOIN grade ON student.sid = grade.sid
+    JOIN course ON grade.cid = course.cid
+    JOIN teacher ON course.tid = teacher.tid
+    WHERE student.email = %s AND grade.cid = %s
+    """
+    cursor.execute(query_student, (user_email, course_id))
+    student_info = cursor.fetchone()
+    conn.close()
 
-        # Left logo
-        left_logo_path = "background2.jpeg"
-        left_logo = Image.open(left_logo_path)
-        left_logo = left_logo.resize((200, 120), Image.LANCZOS)
-        self.left_logo_image = ImageTk.PhotoImage(left_logo)
+    if student_info:
+        student_sid = student_info[0]
+        student_name = student_info[1]
+        student_grade = student_info[2]
+        course_name = student_info[3]
+        teacher_name = student_info[4]
+        t_id=student_info[5]
 
-        # Position logos on the header canvas
-        left_logo_label = tk.Label(self.top_canvas, image=self.left_logo_image, bg='black')
-        left_logo_label.image = self.left_logo_image
-        left_logo_label.place(relx=0.07, rely=0.5, anchor='center')
+        # New window for course details
+        marks_window = tk.Toplevel()
+        marks_window.title("Course Details")
+        marks_window.configure(bg="goldenrod2")
+        marks_window.geometry("1024x768")
 
-        right_logo_label = tk.Label(self.top_canvas, image=self.logo_image, bg='black')
-        right_logo_label.image = self.logo_image
-        right_logo_label.place(relx=0.94, rely=0.5, anchor='center')
+        # HEADER1
+        header_frame1 = Frame(marks_window, height=50, bg='black')
+        header_frame1.place(x=0, y=462, relwidth=1)
+        header_canvas1 = Canvas(header_frame1, height=50, bg='black')
+        header_canvas1.pack(fill='both', expand=True)
 
-        # Add the "MY COURSES" label in the middle of the top canvas
-        courses_label = tk.Label(self.top_canvas, text="MY COURSES", bg='black', fg='white', font=('Arial', 24, 'bold'))
-        courses_label.place(relx=0.5, rely=0.5, anchor='center')
+        # HEADER2
+        header_frame2 = Frame(marks_window, height=75, bg='black')
+        header_frame2.place(x=0, y=0, relwidth=1)
+        header_canvas2 = Canvas(header_frame2, height=75, bg='black')
+        header_canvas2.pack(fill='both', expand=True)
 
-        # Sidebar frame
-        self.sidebar_frame = tk.Frame(self, bg='black', width=200)  # Changed bg to black
-        self.sidebar_frame.pack(side=tk.LEFT, fill=tk.Y)
-        self.sidebar_frame.pack_propagate(False)
+        # Set text
+        header_canvas1.create_text(760, 30, text=f"MY GRADE", fill='white', font=('Times', 30, 'bold'), anchor='center')
+        header_canvas2.create_text(750, 50, text="LEADERBOARD", fill='white', font=('Times', 30, 'bold'), anchor='center')
 
-        sidebar_buttons = [
-            ("Dashboard", lambda: self.open_app2('main.py')),
-            ("Attendance", lambda:self.open_app('attendance.py')),
-            ("Assignment", lambda:self.open_app('Assignment/main1.py')),
-            ("Exams", lambda:self.open_app('exam.py')),
-            ("Grades", lambda:self.open_app('grade.py'))
-        ]
-        
-        for btn_text, command_func in sidebar_buttons:
-            btn = tk.Button(self.sidebar_frame, text=btn_text, bg='black', fg='white', font=('Arial', 12), command=command_func)
-            btn.pack(fill=tk.X, pady=20, padx=20)  # Adjusted padding for vertical spacing
+        # Display student information and grades for the selected course
+        results_frame = tk.Frame(marks_window, bg="white")
+        results_frame.place(relx=0.05, rely=0.095, relwidth=0.9, relheight=0.489)
 
-        self.sidebar_visible = True
+        left_frame = Frame(results_frame, bg="white")
+        left_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
+        right_frame = Frame(results_frame, bg="white")
+        right_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        # Main content frame for courses
-        self.courses_frame = tk.Frame(self, bg='white')  # Change bg to white
-        self.courses_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=20, pady=20)
-         
-        # Fetch courses data from MySQL database
-        self.fetch_courses_data()
+        # Blank frame at the bottom (20% coverage)
+        blank_frame = tk.Frame(marks_window, bg="white")
+        blank_frame.place(relx=0.05, rely=0.65, relwidth=0.9, relheight=0.38)
 
-        # Create course cards
-        self.create_course_cards(self.courses_frame, self.courses_data)
+        # Labels for student information
+        info_label1 = Label(blank_frame, text=f"SID: {student_sid}", bg='gray16', fg='white', font=('Times', 18, 'bold'))
+        info_label2 = Label(blank_frame, text=f"Name: {student_name}", bg='white', fg='black', font=('Times', 18, 'bold'))
+        info_label3 = Label(blank_frame, text=f"Grade: {student_grade}", bg='white', fg='black', font=('Times', 18, 'bold'))
+        info_label4 = Label(blank_frame, text=f"Course: {course_name}", bg='white', fg='black', font=('Times', 18, 'bold'))
+        info_label5 = Label(blank_frame, text=f"Teacher: {teacher_name}", bg='white', fg='black', font=('Times', 18, 'bold'))
+        info_label6 = Label(blank_frame, text=f"Tid: {t_id}", bg='white', fg='black', font=('Times', 18, 'bold'))
 
-        # Bind the window resize event to the on_resize method
-        self.bind("<Configure>", self.on_resize)
-
-    def fetch_courses_data(self):
-        # Example query to fetch course data from MySQL
-        self.cursor.execute("SELECT cid, cname, tid FROM course")
-        self.courses_data = self.cursor.fetchall()  # Assuming a list of tuples (cid, cname, tid)
-    def close_loading_window(self):
-        loading_window.destroy()  # Destroy the loading window
-
-
-
-    def open_app2(self,x):
-        global loading_window
-        loading_window = tk.Tk()
-        loading_window.title("Loading")
-        loading_window.geometry("3200x1200")
-        loading_window.configure(bg='white')
-
-        # Display loading animation
-        loading_frame = tk.Frame(loading_window, bg='white')
-        loading_frame.place(relx=0.5, rely=0.5, anchor='center')
-        loading_label = tk.Label(loading_frame, text="Logging in...", font=("Helvetica", 16), bg='white')
-        loading_label.pack(pady=20)
-        # Infinity symbol animation
-        spinner = cycle(['|', '/', '-', '\\'])
-        spinner_label = tk.Label(loading_frame, text="", font=("Helvetica", 24), bg='white')
-        spinner_label.pack()
-        def animate():
-            spinner_label.config(text=next(spinner))
-            loading_window.after(50, animate)
-
-        animate()
-        # Warning message
-        warning_label = tk.Label(loading_frame, text="Please do not close the window until we redirect to your new window", font=("Helvetica", 12), fg='grey', bg='white')
-        warning_label.pack(pady=20)
-        # Show the loading page for 3 seconds before transitioning to the dashboard
-        loading_window.after(2300, self.close_loading_window)
-        loading_window.after(2300, self.open_app2)
-        # Open the main application window
-        self.destroy()
-        subprocess.Popen(['python',x])    
+        # Place labels for student information
+        info_label1.place(x=143, y=220)
+        info_label2.place(x=350, y=20)
+        info_label3.place(x=350, y=190)
+        info_label5.place(x=800, y=20)
+        info_label6.place(x=800, y=100)
+        info_label4.place(x=350, y=100)
 
 
 
-    def open_app(self,x):
-        self.destroy()
+        # Profile photo
+        # Load image for profile (assuming you want it in the blank frame)
+        profile_image = Image.open("grade_page/profile.png")  # Replace with your image file
+        profile_image = profile_image.resize((200, 200))  # Resize image as needed
+        profile_photo = ImageTk.PhotoImage(profile_image)
+
+        # Create a label to display the profile image
+        profile_label = tk.Label(blank_frame, image=profile_photo, bg="white")
+        profile_label.image = profile_photo  # Keep a reference
+        profile_label.pack(pady=10, anchor="nw", padx=70)
+
+        # Headers for columns
+        name_label = Label(left_frame, text="Name", bg="white", font=('Helvetica', 12, 'bold'), anchor="w", width=30)
+        name_label.grid(row=0, column=0, sticky="w", padx=5, pady=5)
+        grade_label = Label(right_frame, text="Grade", bg="white", font=('Helvetica', 12, 'bold'), anchor="e", width=10)
+        grade_label.grid(row=0, column=0, sticky="e", padx=5, pady=5)
+
+        # Fetch and display grades for the selected course
+        grades = fetch_grades(course_id)
+        for idx, (student_name, grade) in enumerate(grades, start=1):
+            student_label = Label(left_frame, text=student_name, bg="white", font=('Helvetica', 12), anchor="w", width=30)
+            student_label.grid(row=idx, column=0, sticky="w", padx=5, pady=5)
+            grade_label = Label(right_frame, text=grade, bg="white", font=('Helvetica', 12), anchor="e", width=10)
+            grade_label.grid(row=idx, column=0, sticky="e", padx=5, pady=5)
+
+    else:
+        messagebox.showerror("Error", "Student not found for this course.")
+# Initialize main window
+window = tk.Tk()
+window.geometry("1366x768")
+window.title("Futurense")
+
+# Background image for the main window
+bg_image = Image.open("grade_page/white4.png")
+bg_image = bg_image.resize((1550, 768))
+bg_photo = ImageTk.PhotoImage(bg_image)
+
+canvas = tk.Canvas(window, width=1366, height=768)
+canvas.pack(fill="both", expand=True)
+canvas.create_image(0, 0, image=bg_photo, anchor="nw")
+
+# Configure main window background to be transparent
+window.configure(bg='black')
+
+logo_path = "login_page/lms-2.ico"
+window.iconbitmap(logo_path)
+
+# Create frame1 with white background
+frame1 = tk.Frame(window, bg="white")
+frame1.place(relx=0.62, rely=0.70, anchor=tk.CENTER, width=1400, height=620)
+
+# Background image for frame1
+frame1_bg_image = Image.open("grade_page/white4.png")
+frame1_bg_image = frame1_bg_image.resize((1400, 620))
+frame1_bg_photo = ImageTk.PhotoImage(frame1_bg_image)
+
+# Create a label inside frame1 to display the background image
+frame1_label = tk.Label(frame1, image=frame1_bg_photo)
+frame1_label.place(x=0, y=0, relwidth=1, relheight=1)
+
+# Fetch courses from the database
+courses = fetch_courses()
+
+# Calculate uniform size for all frames
+frame_width = 332
+frame_height = 150
+
+# Calculate gaps between columns and rows
+column_gap = 120
+row_gap = (576 - 2 * frame_height) / 3  # Gap between rows based on available height
+
+# Create course frames and buttons dynamically
+for idx, (course_id, course_name) in enumerate(courses):
+    row = idx // 3
+    col = idx % 3
+    
+    x_position = col * (frame_width + column_gap)
+    y_position = row * (frame_height + row_gap)
+    
+    course_frame = tk.Frame(frame1, bg="goldenrod2", width=frame_width, height=frame_height)
+    course_frame.place(x=x_position, y=y_position, width=frame_width, height=frame_height)
+    
+    course_label = tk.Label(course_frame, text=course_name, bg="goldenrod2", fg="black", font=('times', 15, 'bold'))
+    course_label.pack(pady=25, padx=10)
+    
+    course_button = tk.Button(course_frame, text="Show Result", command=lambda cid=course_id: open_course_page(cid), height=2, width=10, font=('helvetica', 10), bg="purple4", fg="white")
+    course_button.pack(pady=20)
+
+# Left column menu
+left_column_width = 0.15 * 1366
+left_column_frame = Frame(window, width=left_column_width, bg='gray16')
+left_column_frame.place(x=0, y=0, relheight=1, anchor='nw')
+def close_loading_window():
+    loading_window.destroy()  # Destroy the loading window
+
+
+def open_app2(x):
+    global loading_window
+    window.destroy
+    loading_window = tk.Tk()
+    loading_window.title("Loading")
+    loading_window.geometry("3200x1200")
+    loading_window.configure(bg='white')
+
+    # Display loading animation
+    loading_frame = tk.Frame(loading_window, bg='white')
+    loading_frame.place(relx=0.5, rely=0.5, anchor='center')
+    loading_label = tk.Label(loading_frame, text="Logging in...", font=("Helvetica", 16), bg='white')
+    loading_label.pack(pady=20)
+    # Infinity symbol animation
+    spinner = cycle(['|', '/', '-', '\\'])
+    spinner_label = tk.Label(loading_frame, text="", font=("Helvetica", 24), bg='white')
+    spinner_label.pack()
+    def animate():
+        spinner_label.config(text=next(spinner))
+        loading_window.after(50, animate)
+
+    animate()
+    # Warning message
+    warning_label = tk.Label(loading_frame, text="Please do not close the window until we redirect to your new window", font=("Helvetica", 12), fg='grey', bg='white')
+    warning_label.pack(pady=20)
+    # Show the loading page for 3 seconds before transitioning to the dashboard
+    loading_window.after(2300, close_loading_window)
+    loading_window.after(2300, open_app2)
+    # Open the main application window
+    window.destroy()
+    subprocess.Popen(['python',x])
+
+def open_app(x):
+        window.destroy()
         subprocess.Popen(['python',x])
+dash_button = Button(left_column_frame, text="DASHBOARD", bg='gray16', fg='white', font=('helvetica', 12, 'bold'), width=15,command=lambda:open_app2('main.py'))
+dash_button.place(x=20, y=150)
+assin_button = Button(left_column_frame, text="ASSIGNMENT", bg='gray16', fg='white', font=('helvetica', 12, 'bold'), width=15,command=lambda:open_app('Assignment/main1.py'))
+assin_button.place(x=20, y=250)
+attendance_button = Button(left_column_frame, text="ATTENDANCE", bg='gray16', fg='white', font=('helvetica', 12, 'bold'), width=15,command=lambda:open_app('attendance.py'))
+attendance_button.place(x=20, y=350)
+assin_button = Button(left_column_frame, text="EXAMS", bg='gray16', fg='white', font=('helvetica', 12, 'bold'), width=15,command=lambda:open_app('exam.py'))
+assin_button.place(x=20, y=450)
+attendance_button = Button(left_column_frame, text="COURSES", bg='gray16', fg='white', font=('helvetica', 12, 'bold'), width=15,command=lambda:open_app('grade.py'))
+attendance_button.place(x=20, y=550)
 
-    def create_course_cards(self, parent, courses):
-        self.course_cards = []
+# Function to toggle left column visibility
+left_column_visible = True
+def toggle_left_column():
+    global left_column_visible
+    if left_column_visible:
+        left_column_frame.place_forget()
+        left_column_visible = False
+    else:
+        left_column_frame.place(x=0, y=0, relheight=1, anchor='nw')
+        left_column_visible = True
 
-        # Calculate padding and number of columns
-        padding_x = 20
-        padding_y = 40
-        num_columns = 2  # Adjust as needed
+toggle_button = tk.Button(window, text="☰", command=toggle_left_column, borderwidth=0, bg="white", fg="black")
+toggle_button.place(x=1500, y=150)
 
-        for i, course in enumerate(courses):
-            # Create a frame for each course
-            card = tk.Frame(parent, bg='goldenrod2', bd=2, relief=tk.RAISED)
+# Header frame
+header_frame = Frame(window, height=120, bg='black')
+header_frame.place(x=0, y=0, relwidth=1)
+header_canvas = tk.Canvas(header_frame, height=120, bg='black')
+header_canvas.pack(fill='both', expand=True)
+image = Image.open('background2.jpeg')
+image = image.resize((230, 150))
+photo = ImageTk.PhotoImage(image)
+header_canvas.create_image(100, 60, image=photo, anchor='center')
+header_canvas.create_text(750, 60, text="COURSES RESULT FUTURENSE LMS", fill='white', font=('Times', 30, 'bold'), anchor='center')
 
-            # Create labels and button inside the card
-            title_label = tk.Label(card, text=course[1], bg='goldenrod2', font=('Arial', 14, 'bold'))
-            title_label.pack(pady=5)
+x = Image.open('background3.jpeg')
+x = x.resize((180, 120))
+y = ImageTk.PhotoImage(x)
+header_canvas.create_image(1400, 60, image=y, anchor='center')
 
-            open_btn = tk.Button(card, text="Get Started", font=('Arial', 12), bg='blue', fg='white', padx=10, pady=5, command=lambda c=course: self.open_course(c))
-            open_btn.pack(pady=5)
-
-            # Pack the card frame into the parent with grid layout
-            card.grid(row=i//num_columns, column=i%num_columns, padx=padding_x, pady=padding_y, sticky="nsew")
-
-            # Store the card in the list
-            self.course_cards.append(card)
-
-        # Configure rows and columns to expand evenly
-        for i in range(len(courses)//num_columns + len(courses)%num_columns):
-            parent.grid_rowconfigure(i, weight=1)
-        for i in range(num_columns):
-            parent.grid_columnconfigure(i, weight=1)
-
-    def on_resize(self, event):
-        # Calculate number of columns based on width
-        width = self.courses_frame.winfo_width()
-        if width < 400:
-            columns = 1
-        elif width < 800:
-            columns = 2
-        else:
-            columns = 3
-
-        # Re-grid the cards based on new number of columns
-        for index, card in enumerate(self.course_cards):
-            card.grid_forget()
-            card.grid(row=index//columns, column=index%columns, padx=20, pady=40, sticky="nsew")
-
-        # Configure rows and columns to expand evenly
-        for i in range(len(self.course_cards)//columns + len(self.course_cards)%columns):
-            self.courses_frame.grid_rowconfigure(i, weight=1)
-        for i in range(columns):
-            self.courses_frame.grid_columnconfigure(i, weight=1)
-
-    def open_course(self, course):
-        # Fetch additional details about the course
-        self.cursor.execute("SELECT tname FROM teacher WHERE tid = %s", (course[2],))
-        result = self.cursor.fetchone()
-
-        if result:
-            teacher_name = result[0]
-            self.cursor.execute("SELECT COUNT(*) FROM student_course WHERE cid = %s", (course[0],))
-            enrollment_count = self.cursor.fetchone()[0]
-
-            # Open a new Toplevel window for the course details
-            CourseDetailsWindow(self, course[1], teacher_name, enrollment_count)
-        else:
-            print(f"No teacher found for course {course[1]}")
-
-class CourseDetailsWindow(tk.Toplevel):
-    def __init__(self, master, course_name, teacher_name, enrollment_count):
-        super().__init__(master)
-        self.geometry("1200x700")
-        self.title(course_name)
-
-        # Configure the header
-        header_frame = tk.Frame(self, height=130, background='black')
-        header_frame.pack(fill=tk.X)
-
-        # Left logo
-        left_logo_path = "background2.jpeg"
-        left_logo = Image.open(left_logo_path)
-        left_logo = left_logo.resize((280, 150), Image.LANCZOS)
-        self.left_logo_image = ImageTk.PhotoImage(left_logo)
-
-        left_logo_label = tk.Label(header_frame, image=self.left_logo_image, bg='black')
-        left_logo_label.image = self.left_logo_image
-        left_logo_label.pack(side=tk.LEFT, padx=0, pady=10)
-
-        # Right logo
-        right_logo_path = "background3.jpeg"
-        right_logo = Image.open(right_logo_path)
-        right_logo = right_logo.resize((210, 100), Image.LANCZOS)
-        self.right_logo_image = ImageTk.PhotoImage(right_logo)
-
-        right_logo_label = tk.Label(header_frame, image=self.right_logo_image, bg='black')
-        right_logo_label.image = self.right_logo_image
-        right_logo_label.pack(side=tk.RIGHT, padx=10, pady=10)
-
-        # Display teacher name
-        teacher_label = tk.Label(self, text=f"Teacher: {teacher_name}", font=('Georgia', 16,'bold'))
-        teacher_label.pack(pady=10)
-
-        # Display number of students enrolled
-        enrollment_label = tk.Label(self, text=f"Students Enrolled: {enrollment_count}", font=('Georgia', 14,'bold'))
-        enrollment_label.pack(pady=10)
-        
-if __name__ == "__main__":
-    app = CoursesApp()
-    app.mainloop()
+window.mainloop()

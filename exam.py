@@ -4,6 +4,7 @@ import mysql.connector
 from PIL import Image, ImageTk
 from tkinter import messagebox
 import subprocess
+from itertools import cycle
 # MySQL connection details
 username = "root"
 password = "30127"
@@ -95,11 +96,48 @@ row_gap = (576 - 2 * frame_height) / 3  # Gap between rows based on available he
 left_column_width = 0.15 * 1366
 left_column_frame = Frame(window, width=left_column_width, bg='gray16')
 left_column_frame.place(x=0, y=0, relheight=1, anchor='nw')
+def close_loading_window():
+    loading_window.destroy()  # Destroy the loading window
+
+
+
+def open_app2(x):
+    global loading_window
+    window.destroy
+    loading_window = tk.Tk()
+    loading_window.title("Loading")
+    loading_window.geometry("3200x1200")
+    loading_window.configure(bg='white')
+
+    # Display loading animation
+    loading_frame = tk.Frame(loading_window, bg='white')
+    loading_frame.place(relx=0.5, rely=0.5, anchor='center')
+    loading_label = tk.Label(loading_frame, text="Logging in...", font=("Helvetica", 16), bg='white')
+    loading_label.pack(pady=20)
+    # Infinity symbol animation
+    spinner = cycle(['|', '/', '-', '\\'])
+    spinner_label = tk.Label(loading_frame, text="", font=("Helvetica", 24), bg='white')
+    spinner_label.pack()
+    def animate():
+        spinner_label.config(text=next(spinner))
+        loading_window.after(50, animate)
+
+    animate()
+    # Warning message
+    warning_label = tk.Label(loading_frame, text="Please do not close the window until we redirect to your new window", font=("Helvetica", 12), fg='grey', bg='white')
+    warning_label.pack(pady=20)
+    # Show the loading page for 3 seconds before transitioning to the dashboard
+    loading_window.after(2300, close_loading_window)
+    loading_window.after(2300, open_app2)
+    # Open the main application window
+    window.destroy()
+    subprocess.Popen(['python',x])
+
 def open_app(x):
     window.destroy()
     subprocess.Popen(['python', x])
 
-dash_button = Button(left_column_frame, text="DASHBOARD", bg='gray16', fg='white', font=('helvetica', 12, 'bold'), width=15,command=lambda:open_app('main.py'))
+dash_button = Button(left_column_frame, text="DASHBOARD", bg='gray16', fg='white', font=('helvetica', 12, 'bold'), width=15,command=lambda:open_app2('main.py'))
 dash_button.place(x=20, y=150)
 assin_button = Button(left_column_frame, text="ASSIGNMENT", bg='gray16', fg='white', font=('helvetica', 12, 'bold'), width=15,command=lambda:open_app('main.py'))
 assin_button.place(x=20, y=250)

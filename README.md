@@ -59,5 +59,5 @@ Contains the main page or dashboard.
 
 8. **Log Out** 🚪
    - Come back to the dashboard and click on the logout button on the upper side.
-   - It will bring you back to the login page.
+   - It will bring you back to the login page..
 
